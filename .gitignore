@@ -4,3 +4,4 @@ __pycache__
 *.pyc
 .vscode
 tests
+#remind me to remove tests from here once tests are completed
