@@ -1,4 +1,3 @@
-# src/notification/nearby_notifs.py
 from .service import create_notification_if_not_exists
 from src.entities.lost_found import LostFoundReport
 from src.entities.rescue_rep import RescueReport
@@ -6,7 +5,7 @@ from geopy.distance import geodesic
 
 
 def generate_nearby_notifications(db, current_user, lat: float, lon: float):
-    # Try to extract user_id from current_user
+    
     user_id = getattr(current_user, "id", None) or getattr(current_user, "user_id", None)
     if callable(user_id):
         user_id = user_id()
@@ -17,7 +16,7 @@ def generate_nearby_notifications(db, current_user, lat: float, lon: float):
 
     print(f"[Notifications] Checking for nearby reports for user {user_id}")
 
-    # Load all Lost/Found and Rescue reports (excluding own)
+    # Load all Lost/Found and Rescue reports 
     lost_reports = (
         db.query(LostFoundReport)
         .filter(LostFoundReport.user_id != user_id)
@@ -53,7 +52,7 @@ def generate_nearby_notifications(db, current_user, lat: float, lon: float):
 
         distance = geodesic((lat, lon), (r.latitude, r.longitude)).km
         if distance <= 10:
-            # Use the enum value (e.g. "Critical", "High", "Medium", "Low")
+            # enum value (e.g. "Critical", "High", "Medium", "Low")
             alert_label = r.alert_type.value
 
             message = (

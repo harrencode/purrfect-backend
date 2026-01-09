@@ -1,110 +1,136 @@
-# app/recommender/model.py
 import joblib
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 import os
 from sklearn.neighbors import NearestNeighbors
 
-# Paths to your trained model 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "scripts", "knn_model.pkl")
-FEATURES_PATH = os.path.join(os.path.dirname(__file__), "scripts", "pet_features.pkl")
+SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "scripts")
+MODEL_PATH = os.path.join(SCRIPTS_DIR, "knn_model.pkl")
+FEATURES_PATH = os.path.join(SCRIPTS_DIR, "pet_features.pkl")
+SCALER_PATH = os.path.join(SCRIPTS_DIR, "scaler.pkl")
 
 
-def load_model():
+def load_model() -> Tuple[Any, Dict[str, Any], Any]:
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError("Model not trained. Run training script.")
+    if not os.path.exists(FEATURES_PATH):
+        raise FileNotFoundError("Features not found. Run training script.")
+    if not os.path.exists(SCALER_PATH):
+        raise FileNotFoundError("Scaler not found. Run training script.")
+
     model = joblib.load(MODEL_PATH)
     features = joblib.load(FEATURES_PATH)
-    return model, features
+    scaler = joblib.load(SCALER_PATH)
+    return model, features, scaler
 
 
-def encode_preference(preference: Dict[str, Any], features_columns: List[str]):
+def _get(pet_or_pref: Dict[str, Any], *keys, default=None):
     
-    #Encode user preference into same feature vector space as pets.
+    for k in keys:
+        if k in pet_or_pref and pet_or_pref[k] is not None:
+            return pet_or_pref[k]
+    return default
+
+
+def encode_preference(preference: Dict[str, Any], features_columns: List[str]) -> np.ndarray:
     
-    vec = pd.Series(0, index=features_columns, dtype=float)
-    if preference.get("preferred_species"):
-        col = f"species_{preference['preferred_species'].lower()}"
+    vec = pd.Series(0.0, index=features_columns, dtype=float)
+
+    species = _get(preference, "preferred_species", "PreferredSpecies")
+    if isinstance(species, str):
+        s = species.strip().lower()
+        if s == "dog" and "species_dog" in vec.index:
+            vec["species_dog"] = 1
+        elif s == "cat" and "species_cat" in vec.index:
+            vec["species_cat"] = 1
+
+    size = _get(preference, "preferred_size", "PreferredSize")
+    if isinstance(size, str):
+        sz = size.strip().lower()
+        col = f"size_{sz}"
         if col in vec.index:
             vec[col] = 1
-    if preference.get("preferred_size"):
-        col = f"size_{preference['preferred_size'].lower()}"
-        if col in vec.index:
-            vec[col] = 1
-    if preference.get("temperament"):
-        col = f"temperament_{preference['temperament'].lower()}"
-        if col in vec.index:
-            vec[col] = 1
-    if preference.get("activity_level"):
-        col = f"energy_{preference['activity_level'].lower()}"
-        if col in vec.index:
-            vec[col] = 1
+
+    
+    temperament = _get(preference, "temperament", "Temperament")
+    if isinstance(temperament, str):
+        t = temperament.strip().lower()
+        if t in ("calm", "friendly", "playful"):
+            desc_col = f"desc_{t}"
+            if desc_col in vec.index:
+                vec[desc_col] = 1
+
+    # numeric preferences 
+    for num_feat in ["Age", "Fee", "Quantity", "PhotoAmt", "VideoAmt"]:
+        val = _get(preference, num_feat, num_feat.lower())
+        if val is not None and num_feat in vec.index:
+            vec[num_feat] = float(val)
+
     return vec.values.reshape(1, -1)
 
 
-def encode_pet_for_model(pet: Dict[str, Any], features_columns: List[str]):
-    
-    #Encode a pet dict from your DB into feature vector compatible with model.
-    
-    vec = pd.Series(0, index=features_columns, dtype=float)
+def encode_pet_for_model(pet: Dict[str, Any], features_columns: List[str]) -> np.ndarray:
+   
+    vec = pd.Series(0.0, index=features_columns, dtype=float)
 
-    # species
-    if pet.get("Species"):
-        col = f"species_{pet['Species'].lower()}"
+    species = _get(pet, "Species", "species")
+    if isinstance(species, str):
+        s = species.strip().lower()
+        if s == "dog" and "species_dog" in vec.index:
+            vec["species_dog"] = 1
+        elif s == "cat" and "species_cat" in vec.index:
+            vec["species_cat"] = 1
+
+    size = _get(pet, "Size", "size")
+    if isinstance(size, str):
+        sz = size.strip().lower()
+        col = f"size_{sz}"
         if col in vec.index:
             vec[col] = 1
 
-    # size
-    if pet.get("Size"):
-        col = f"size_{pet['Size'].lower()}"
-        if col in vec.index:
-            vec[col] = 1
+    temperament = _get(pet, "Temperament", "temperament")
+    if isinstance(temperament, str):
+        t = temperament.strip().lower()
+        if t in ("calm", "friendly", "playful"):
+            desc_col = f"desc_{t}"
+            if desc_col in vec.index:
+                vec[desc_col] = 1
 
-    # temperament
-    if pet.get("Temperament"):
-        col = f"temperament_{pet['Temperament'].lower()}"
-        if col in vec.index:
-            vec[col] = 1
+    # numeric features 
+    for num_feat in ["Age", "Fee", "Quantity", "PhotoAmt", "VideoAmt"]:
+        val = _get(pet, num_feat, num_feat.lower())
+        if val is not None and num_feat in vec.index:
+            vec[num_feat] = float(val)
 
-    # activity level
-    if pet.get("ActivityLevel"):
-        col = f"energy_{pet['ActivityLevel'].lower()}"
-        if col in vec.index:
-            vec[col] = 1
-
-    # numeric features
-    for num_feat in ['Age', 'Fee', 'Quantity', 'PhotoAmt', 'VideoAmt']:
-        if num_feat in pet and num_feat in vec.index:
-            vec[num_feat] = float(pet[num_feat])
-
-    return vec.values
+    return vec.values  
 
 
 def recommend(preference: Dict[str, Any], pets_in_db: List[Dict[str, Any]], top_k: int = 5):
-    
-    #Recommend top_k pets based on user preference from pets currently in your DB.
-    
     if not pets_in_db:
         return []
 
-    # Load feature columns (from saved model)
-    _, features = load_model()
+    _, features, scaler = load_model()
     feature_cols = features["columns"]
 
-    # Encode current DB pets
-    X_candidates = [encode_pet_for_model(pet, feature_cols) for pet in pets_in_db]
-    candidate_index = {i: pet for i, pet in enumerate(pets_in_db)}
+    # Encode pets
+    X_candidates = np.vstack([encode_pet_for_model(p, feature_cols) for p in pets_in_db])  
 
-    # Fit NearestNeighbors on current petsj
-    nn = NearestNeighbors(n_neighbors=min(top_k, len(X_candidates)))
-    nn.fit(X_candidates)
+    # Encode preference
+    pref_vec = encode_preference(preference, feature_cols)  
 
-    # Encode user preference
-    pref_vec = encode_preference(preference, feature_cols)
+    
+    X_candidates_scaled = scaler.transform(X_candidates)
+    pref_scaled = scaler.transform(pref_vec)
 
-    # Get nearest neighbors
-    distances, indices = nn.kneighbors(pref_vec)
-    return [candidate_index[i] for i in indices[0]]
+    nn = NearestNeighbors(n_neighbors=min(top_k, len(pets_in_db)), metric="euclidean")
+    nn.fit(X_candidates_scaled)
 
+    distances, indices = nn.kneighbors(pref_scaled)
 
+    results = []
+    for rank, idx in enumerate(indices[0]):
+        pet = pets_in_db[idx]
+        results.append(pet)
+
+    return results

@@ -1,10 +1,9 @@
+import os
 from datetime import timedelta, datetime, timezone
 from typing import Annotated
 from uuid import UUID, uuid4
 from fastapi import Depends
 from passlib.context import CryptContext
-# import jwt
-# from jwt import PyJWTError
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from src.entities.user import User
@@ -14,11 +13,11 @@ from ..exceptions import AuthenticationError
 import logging
 
 
+# Authentication settings
 
-# store this in an environment variable or a secret manager - reminder
-SECRET_KEY = '197b2c37c391bed93fe80344fe73b806947a65e36206e05a1a23c2fa12702fe3'
-ALGORITHM = 'HS256'
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl='auth/token')
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
@@ -39,23 +38,10 @@ def authenticate_user(email: str, password: str, db: Session) -> User | bool:
         return False
     return user
 
-
-# def create_access_token(email: str, user_id: UUID, expires_delta: timedelta) -> str:
-#     encode = {
-#         # 'sub': email,
-#         # 'id': str(user_id),
-#         "sub": str(user_id),         # The user ID
-#         "email": email,         # Optional but useful
-#         'exp': datetime.now(timezone.utc) + expires_delta
-#     }
-#     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
-
-# service.py
-
 def create_access_token(user: User, expires_delta: timedelta) -> str:
     to_encode = {
-        "sub": str(user.id),                     # user ID in sub
-        "email": user.email,                     # optional email
+        "sub": str(user.id),                    
+        "email": user.email,                    
         "exp": datetime.now(timezone.utc) + expires_delta,
     }
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
