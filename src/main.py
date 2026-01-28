@@ -1,9 +1,13 @@
+import os
+import importlib
+import pkgutil
+
 from fastapi import FastAPI
-from .database.core import engine, Base
-from .entities.user import User  
+from fastapi.middleware.cors import CORSMiddleware
+
 from .api import register_routes
-from .logging import configure_logging, LogLevels
-from fastapi.middleware.cors import CORSMiddleware  
+from .database.core import Base, engine
+from .logging import LogLevels, configure_logging
 
 configure_logging(LogLevels.info)
 
@@ -23,9 +27,23 @@ app.add_middleware(
 
 
 
-# Only uncomment below to create new tables, 
-#otherwise the tests will fail if not connected
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
-Base.metadata.create_all(bind=engine)
+
+@app.on_event("startup")
+def _startup_db_init() -> None:
+    auto_create = os.getenv("AUTO_CREATE_TABLES", "false").strip().lower() in {"1", "true", "yes", "on"}
+    if not auto_create:
+        return
+
+    # Ensure all models are registered on Base.metadata before create_all.
+    import src.entities as entities_pkg
+
+    for module_info in pkgutil.iter_modules(entities_pkg.__path__, entities_pkg.__name__ + "."):
+        importlib.import_module(module_info.name)
+
+    Base.metadata.create_all(bind=engine)
 
 register_routes(app)

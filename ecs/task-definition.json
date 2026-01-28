@@ -1,0 +1,44 @@
+{
+  "family": "purrfect-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["EC2"],
+  "executionRoleArn": "REPLACE_ME_EXECUTION_ROLE_ARN",
+  "taskRoleArn": "REPLACE_ME_TASK_ROLE_ARN",
+  "containerDefinitions": [
+    {
+      "name": "purrfect-backend",
+      "image": "REPLACE_ME_IMAGE",
+      "essential": true,
+      "cpu": 256,
+      "memoryReservation": 512,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "PORT", "value": "8000" },
+        { "name": "AUTO_CREATE_TABLES", "value": "false" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "REPLACE_ME_DATABASE_URL_SECRET_ARN"
+        },
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "REPLACE_ME_SECRET_KEY_SECRET_ARN"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/purrfect-backend",
+          "awslogs-region": "REPLACE_ME_AWS_REGION",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
