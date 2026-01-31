@@ -10,8 +10,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the project files
 COPY src/ src/
 
+COPY alembic.ini .
+COPY alembic/ alembic/
+
 # Expose the port FastAPI runs on
 EXPOSE 8000
 
-# Run the FastAPI application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the FastAPI application (production)
+# Uses PORT if provided (ECS/ALB commonly forwards to container port 8000).
+CMD ["sh", "-c", "gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000} src.main:app"]

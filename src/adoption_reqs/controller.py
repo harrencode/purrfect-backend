@@ -94,7 +94,7 @@ async def upload_pet_image(
         raise HTTPException(status_code=403, detail="Not allowed to modify this pet")
 
     try:
-        # will go under pets/ in your bucket
+        # will go under pets
         url = upload_image_to_s3(file, folder="pets")
     except Exception as e:
         logging.error(f"Pet image upload failed: {e}")
