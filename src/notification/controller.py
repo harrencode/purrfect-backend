@@ -47,7 +47,7 @@ def trigger_nearby_notifications(
 
     def _run():
         try:
-            # current_user here is your TokenData / CurrentUser alias
+            
             # generate_nearby_notifications is already written to handle that
             generate_nearby_notifications(db, current_user, latitude, longitude)
         except Exception as e:

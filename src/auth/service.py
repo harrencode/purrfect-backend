@@ -2,7 +2,7 @@ import os
 from datetime import timedelta, datetime, timezone
 from typing import Annotated
 from uuid import UUID, uuid4
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -11,7 +11,10 @@ from . import models
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from ..exceptions import AuthenticationError
 import logging
+from src.utils.ses_service import send_verification_code
+from src.auth.verification import generate_code, hash_code
 
+from src.utils.s3_service import upload_image_to_s3
 
 # Authentication settings
 
@@ -63,7 +66,8 @@ def verify_token(token: str) -> models.TokenData:
 
 
 
-from src.utils.s3_service import upload_image_to_s3
+
+VERIFY_CODE_TTL_MIN = int(os.getenv("VERIFY_CODE_TTL_MIN", "10"))
 
 def register_user(
     db: Session,
@@ -78,13 +82,18 @@ def register_user(
     min_age=None,
     max_age=None,
     profile_photo=None
-) -> None:
+):
     try:
-        # Upload to S3 or fallback to placeholder
+        # Upload photo (or fallback)
         if profile_photo:
             photo_url = upload_image_to_s3(profile_photo, folder="users")
         else:
-            photo_url = "https://avatar.iran.liara.run/public/11c"
+            photo_url = "https://avatar.iran.liara.run/public/11" 
+
+        # Generate verification code
+        code = generate_code()
+        code_hash = hash_code(code)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=VERIFY_CODE_TTL_MIN)
 
         user = User(
             id=uuid4(),
@@ -92,17 +101,32 @@ def register_user(
             first_name=first_name,
             last_name=last_name,
             password_hash=get_password_hash(password),
+
             preferred_species=preferred_species,
             preferred_size=preferred_size,
             temperament=temperament,
             activity_level=activity_level,
             min_age=min_age,
             max_age=max_age,
-            profile_photo_url=photo_url
+
+            profile_photo_url=photo_url,
+
+            # verification state
+            is_active=True,
+            is_email_verified=False,
+            email_verification_token=code_hash,
+            email_verification_expires_at=expires_at,
+            email_verification_attempts=0,
         )
 
         db.add(user)
         db.commit()
+
+        # Send code by email
+        send_verification_code(email, code)
+
+        return {"message": "Account created. Verification code sent to email."}
+
     except Exception as e:
         logging.error(f"Failed to register user {email}: {str(e)}")
         raise
@@ -123,10 +147,18 @@ def login_for_access_token(
     if not user:
         raise AuthenticationError()
 
-    token = create_access_token(
-        user,
-        timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-    )
+    # block if not verified
+    if not user.is_email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "EMAIL_NOT_VERIFIED", "email": user.email}
+        )
 
-    return models.Token(access_token=token, token_type='bearer')
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "ACCOUNT_INACTIVE"}
+        )
 
+    token = create_access_token(user, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    return models.Token(access_token=token, token_type="bearer")
