@@ -51,6 +51,44 @@ In your GitHub repo, set these **Secrets**:
 
 After that, pushing to `main` will deploy.
 
+## Deploy to Render (Free) with GitHub Actions
+
+This repo includes a Render blueprint and a CI/CD workflow for free-tier deployments.
+
+### 1) Create a Render Postgres database
+
+- In Render, create a **PostgreSQL** database (Free plan is ok).
+- Note the database name and user if you want custom values.
+
+### 2) Create the Render web service
+
+- Use the blueprint in [render.yaml](render.yaml) to create the service.
+- Render will connect the service to the database and inject `DATABASE_URL`.
+
+### 3) Set required environment variables
+
+In the Render service settings, set:
+
+- `SECRET_KEY` (required for auth)
+- Any optional AWS/S3 or WhatsApp settings you actually use
+
+### 4) Configure GitHub Actions deploy hook
+
+- In Render, create a **Deploy Hook** for the service.
+- In GitHub repo secrets, add `RENDER_DEPLOY_HOOK` with the hook URL.
+- The workflow [render-ci-cd.yml](.github/workflows/render-ci-cd.yml) runs tests on PRs and deploys on `main`.
+
+### 5) Run migrations (optional but recommended)
+
+- Create a Render **Deploy Hook** that runs a one-off command: `alembic upgrade head`.
+- Add the hook URL to GitHub repo secrets as `RENDER_MIGRATE_HOOK`.
+- Run the workflow [render-migrate.yml](.github/workflows/render-migrate.yml) when you need to apply schema changes.
+
+Notes:
+
+- Free tier services can sleep when idle; expect cold starts.
+- For production data, consider a paid Postgres plan and automated migrations.
+
 ## Quickstart (Docker)
 
 Prereqs: Docker Desktop
