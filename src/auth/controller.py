@@ -135,7 +135,11 @@ def verify_code_and_login(body: models.VerifyCodeRequest, db: DbSession):
     if user.email_verification_attempts >= 5:
         raise HTTPException(status_code=429, detail="Too many attempts. Please request a new code.")
 
-    if hash_code(body.code) != user.email_verification_token:
+    code = body.code.strip()
+    if code.isdigit() and len(code) < 6:
+        code = code.zfill(6)
+
+    if hash_code(code) != user.email_verification_token:
         user.email_verification_attempts += 1
         db.commit()
         raise HTTPException(status_code=400, detail="Invalid email or code")
