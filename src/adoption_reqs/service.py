@@ -225,7 +225,7 @@ def update_adoption_request(
                 db.commit()
         except Exception as e:
             db.rollback()
-            # We intentionally do NOT raise adoption already persisted.
+            
             logging.error(f"Leaderboard update failed for adoption {req.adopt_id}: {e}")
     else:
         # No adoption change necessary; just persist the request updates

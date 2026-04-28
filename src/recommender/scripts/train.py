@@ -1,175 +1,3 @@
-# import pandas as pd
-# import numpy as np
-# from sklearn.model_selection import train_test_split
-# from sklearn.preprocessing import StandardScaler
-# from sklearn.neighbors import KNeighborsClassifier
-# from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix, classification_report
-# from imblearn.over_sampling import SMOTE
-# import joblib
-# import os
-
-# # Paths
-# # DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
-# DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
-# TRAIN_CSV = os.path.join(DATA_DIR, "train.csv")
-# BREED_CSV = os.path.join(DATA_DIR, "breed_labels.csv")
-# COLOR_CSV = os.path.join(DATA_DIR, "color_labels.csv")
-# STATE_CSV = os.path.join(DATA_DIR, "state_labels.csv")
-
-# MODEL_OUT = os.path.join(os.path.dirname(__file__), "knn_model.pkl")
-# FEAT_OUT = os.path.join(os.path.dirname(__file__), "pet_features.pkl")
-# SCALER_OUT = os.path.join(os.path.dirname(__file__), "scaler.pkl")
-
-# def load_labels():
-#     breeds = pd.read_csv(BREED_CSV)
-#     colors = pd.read_csv(COLOR_CSV)
-#     states = pd.read_csv(STATE_CSV)
-#     breed_map = dict(zip(breeds["BreedID"], breeds["BreedName"]))
-#     color_map = dict(zip(colors["ColorID"], colors["ColorName"]))
-#     state_map = dict(zip(states["StateID"], states["StateName"]))
-#     return breed_map, color_map, state_map
-
-
-# def preprocess(df):
-#     df = df.copy()
-
-#     # Species, size, fur, health
-#     df["species_dog"] = (df["Type"] == 1).astype(int)
-#     df["species_cat"] = (df["Type"] == 2).astype(int)
-#     df["size_small"] = (df["MaturitySize"] == 1).astype(int)
-#     df["size_medium"] = (df["MaturitySize"] == 2).astype(int)
-#     df["size_large"] = (df["MaturitySize"] == 3).astype(int)
-#     df["size_xlarge"] = (df["MaturitySize"] == 4).astype(int)
-#     df["fur_short"] = (df["FurLength"] == 1).astype(int)
-#     df["fur_medium"] = (df["FurLength"] == 2).astype(int)
-#     df["fur_long"] = (df["FurLength"] == 3).astype(int)
-#     df["vaccinated"] = (df["Vaccinated"] == 1).astype(int)
-#     df["dewormed"] = (df["Dewormed"] == 1).astype(int)
-#     df["sterilized"] = (df["Sterilized"] == 1).astype(int)
-#     df["healthy"] = (df["Health"] == 1).astype(int)
-
-#     # Numeric features
-#     numeric_feats = ["Age", "Fee", "Quantity", "PhotoAmt", "VideoAmt"]
-#     df[numeric_feats] = df[numeric_feats].fillna(0).astype(float)
-
-#     # Description keywords
-#     def keyword_flag(desc, keyword):
-#         return int(keyword in str(desc).lower())
-#     df["desc_playful"] = df["Description"].apply(lambda d: keyword_flag(d, "playful"))
-#     df["desc_calm"] = df["Description"].apply(lambda d: keyword_flag(d, "calm"))
-#     df["desc_friendly"] = df["Description"].apply(lambda d: keyword_flag(d, "friendly"))
-
-#     # One-hot encode categorical columns
-#     cat_cols = ['Breed1', 'Breed2', 'Color1', 'Color2', 'Color3', 'State']
-#     df[cat_cols] = df[cat_cols].astype(str)
-#     df = pd.get_dummies(df, columns=cat_cols, dummy_na=True)
-
-#     # Final X and y
-#     X = df.select_dtypes(include=[np.number]).values
-#     y = df["AdoptionSpeed"].astype(int).values
-#     feature_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-
-#     return X, y, feature_cols
-
-
-
-# def build_pet_index(df, breed_map, color_map, state_map):
-#     pet_index = {}
-#     for i, row in df.iterrows():
-#         pet_index[i] = {
-#             "PetID": row["PetID"],
-#             "Name": row.get("Name"),
-#             "Species": "Dog" if row["Type"] == 1 else "Cat",
-#             "Breed1": breed_map.get(row["Breed1"], None),
-#             "Breed2": breed_map.get(row["Breed2"], None),
-#             "Age": row.get("Age"),
-#             "Color1": color_map.get(row["Color1"], None),
-#             "Color2": color_map.get(row["Color2"], None),
-#             "Color3": color_map.get(row["Color3"], None),
-#             "State": state_map.get(row["State"], None),
-#             "Description": row.get("Description"),
-#         }
-#     return pet_index
-
-
-# def main():
-#     if not os.path.exists(TRAIN_CSV):
-#         print("Dataset not found:", TRAIN_CSV)
-#         return
-
-#     df = pd.read_csv(TRAIN_CSV)
-#     breed_map, color_map, state_map = load_labels()
-
-#     X, y, feature_cols = preprocess(df)
-
-#     # Train/test split
-#     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
-#     # Feature scaling
-#     scaler = StandardScaler()
-#     X_train_scaled = scaler.fit_transform(X_train)
-#     X_test_scaled = scaler.transform(X_test)
-
-
-#     # Balance classes using SMOTE
-#     sm = SMOTE(random_state=42)
-#     X_train_res, y_train_res = sm.fit_resample(X_train_scaled, y_train)
-
-    
-#     # Fit KNN classifier
-#     knn = KNeighborsClassifier(n_neighbors=10, metric="euclidean")
-#     knn.fit(X_train_res, y_train_res)
-
-#     # Predictions
-#     y_pred = knn.predict(X_test_scaled)
-
-#     # Metrics
-#     acc = accuracy_score(y_test, y_pred)
-
-#     prec_w = precision_score(y_test, y_pred, average="weighted", zero_division=0)
-#     rec_w = recall_score(y_test, y_pred, average="weighted", zero_division=0)
-#     f1_w = f1_score(y_test, y_pred, average="weighted")
-
-#     prec_m = precision_score(y_test, y_pred, average="macro", zero_division=0)
-#     rec_m = recall_score(y_test, y_pred, average="macro", zero_division=0)
-#     f1_m = f1_score(y_test, y_pred, average="macro")
-
-#     cm = confusion_matrix(y_test, y_pred)
-
-#     print("Training finished")
-#     print(f"Accuracy: {acc:.4f}\n")
-
-#     print("Weighted metrics:")
-#     print(f"  Precision (weighted): {prec_w:.4f}")
-#     print(f"  Recall (weighted):    {rec_w:.4f}")
-#     print(f"  F1-score (weighted):  {f1_w:.4f}\n")
-
-#     print("Macro metrics:")
-#     print(f"  Precision (macro): {prec_m:.4f}")
-#     print(f"  Recall (macro):    {rec_m:.4f}")
-#     print(f"  F1-score (macro):  {f1_m:.4f}\n")
-
-#     print("Confusion Matrix:\n", cm)
-#     print("\nClassification Report:\n", classification_report(y_test, y_pred))
-
-#     # Pet metadata index
-#     pet_index = build_pet_index(df, breed_map, color_map, state_map)
-#     features = {"columns": feature_cols, "pet_index": pet_index}
-
-#     joblib.dump(knn, MODEL_OUT)
-#     joblib.dump(features, FEAT_OUT)
-#     joblib.dump(scaler, SCALER_OUT)
-
-#     print("\nModel saved to", MODEL_OUT)
-#     print("Features saved to", FEAT_OUT)
-#     print("Scaler saved to", SCALER_OUT)
-
-
-# if __name__ == "__main__":
-#     main()
-
-
-
 import os
 import joblib
 import numpy as np
@@ -189,7 +17,7 @@ from sklearn.metrics import (
     classification_report,
 )
 
-# Optional: SMOTE for imbalanced classes (safe fallback if unavailable / too-small dataset)
+# Optional: SMOTE for imbalanced classes 
 try:
     from imblearn.over_sampling import SMOTE  # type: ignore
     _HAS_SMOTE = True
@@ -198,14 +26,13 @@ except Exception:
     _HAS_SMOTE = False
 
 
-# -----------------------------
-# Paths (kept compatible with model.py)
-# -----------------------------
-# scripts/train.py  -> data/train.csv
+
+# Paths 
+
+
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 TRAIN_CSV = os.path.join(DATA_DIR, "train.csv")
 
-# Optional Kaggle label files (NOT required for the model vectors)
 BREED_CSV = os.path.join(DATA_DIR, "breed_labels.csv")
 COLOR_CSV = os.path.join(DATA_DIR, "color_labels.csv")
 STATE_CSV = os.path.join(DATA_DIR, "state_labels.csv")
@@ -216,9 +43,8 @@ FEAT_OUT = os.path.join(os.path.dirname(__file__), "pet_features.pkl")
 SCALER_OUT = os.path.join(os.path.dirname(__file__), "scaler.pkl")
 
 
-# -----------------------------
-# Feature schema: MUST match model.py encode_pet_for_model()/encode_preference()
-# -----------------------------
+
+# Feature schema: 
 FEATURE_COLS = [
     # one-hot species
     "species_dog",
@@ -228,11 +54,11 @@ FEATURE_COLS = [
     "size_medium",
     "size_large",
     "size_xlarge",
-    # one-hot temperament keywords (model.py calls them desc_*)
+    # one-hot temperament keywords
     "desc_calm",
     "desc_friendly",
     "desc_playful",
-    # numeric (model.py uses these exact names)
+    # numeric
     "Age",
     "Fee",
     "Quantity",
@@ -255,7 +81,6 @@ REQUIRED_INPUT_COLS = [
 
 
 def _safe_read_map(path: str, key_col: str, val_col: str) -> Dict[Any, Any]:
-    """Load optional Kaggle label maps; returns {} if file not found / malformed."""
     if not os.path.exists(path):
         return {}
     df = pd.read_csv(path)
@@ -265,7 +90,6 @@ def _safe_read_map(path: str, key_col: str, val_col: str) -> Dict[Any, Any]:
 
 
 def load_label_maps() -> Tuple[Dict[Any, Any], Dict[Any, Any], Dict[Any, Any]]:
-    """Optional: only used to enrich pet_index metadata. Not required for vector creation."""
     breed_map = _safe_read_map(BREED_CSV, "BreedID", "BreedName")
     color_map = _safe_read_map(COLOR_CSV, "ColorID", "ColorName")
     state_map = _safe_read_map(STATE_CSV, "StateID", "StateName")
@@ -273,14 +97,9 @@ def load_label_maps() -> Tuple[Dict[Any, Any], Dict[Any, Any], Dict[Any, Any]]:
 
 
 def infer_temperament_from_description(desc: Any) -> Optional[str]:
-    """
-    model.py expects a single Temperament value among:
-      - "calm", "friendly", "playful"
-
-    Kaggle train.csv doesn't have a Temperament column, so we derive one from Description.
-    """
+    
     d = str(desc or "").lower()
-    # pick one (priority order) so it aligns with model.py's single-flag encoding
+    
     if "playful" in d:
         return "playful"
     if "friendly" in d:
@@ -311,18 +130,7 @@ def _species_str(pet_type: Any) -> Optional[str]:
 
 
 def preprocess(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, List[str], pd.DataFrame]:
-    """
-    Builds X/y + feature columns that are directly compatible with model.py:
-
-      - species_dog/species_cat from Type
-      - size_* from MaturitySize
-      - desc_calm/desc_friendly/desc_playful from derived Temperament (from Description)
-      - numeric: Age, Fee, Quantity, PhotoAmt, VideoAmt
-
-    IMPORTANT FIXES vs your old train.py:
-      - We do NOT one-hot encode Breed/Color/State (model.py doesn't set them at inference)
-      - We do NOT include AdoptionSpeed inside X (label leakage + schema mismatch)
-    """
+    
     df = df.copy()
 
     missing = [c for c in REQUIRED_INPUT_COLS if c not in df.columns]
@@ -366,14 +174,7 @@ def build_pet_index(
     color_map: Optional[Dict[Any, Any]] = None,
     state_map: Optional[Dict[Any, Any]] = None,
 ) -> Dict[int, Dict[str, Any]]:
-    """
-    Convenience index of pets with keys that model.py can encode:
-
-      - Species: "Dog"/"Cat"
-      - Size: "small"/"medium"/"large"/"xlarge"
-      - Temperament: "calm"/"friendly"/"playful" (derived from Description)
-      - numeric fields used by model vector
-    """
+    
     breed_map = breed_map or {}
     color_map = color_map or {}
     state_map = state_map or {}
@@ -396,7 +197,7 @@ def build_pet_index(
             "Species": _species_str(row.get("Type")),
             "Size": _size_str(row.get("MaturitySize")),
             "Temperament": temp,
-            # numeric features (match model.py)
+            # numeric features 
             "Age": float(row.get("Age") or 0),
             "Fee": float(row.get("Fee") or 0),
             "Quantity": float(row.get("Quantity") or 0),
@@ -417,18 +218,15 @@ def build_pet_index(
 def _safe_train_test_split(
     X: np.ndarray, y: np.ndarray, test_size: float = 0.2, random_state: int = 42
 ) -> Tuple[np.ndarray, Optional[np.ndarray], np.ndarray, Optional[np.ndarray]]:
-    """
-    Robust split that won't crash on very small sample CSVs.
-    Falls back to non-stratified split or no split if too small.
-    """
+    
     n = len(y)
     classes = np.unique(y)
     n_classes = len(classes)
 
     if n < 5 or n_classes < 2:
-        return X, None, y, None  # train on all
+        return X, None, y, None  
 
-    # Stratified split needs test set >= number of classes; else it will crash.
+    # Stratified split needs test set
     min_test_needed = n_classes
     est_test = int(np.ceil(test_size * n))
     if est_test < min_test_needed:
@@ -447,10 +245,7 @@ def _safe_train_test_split(
 
 
 def maybe_apply_smote(X_train_scaled: np.ndarray, y_train: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Apply SMOTE only when available AND when the dataset is large enough.
-    This keeps the script working even with tiny sample train.csv.
-    """
+   
     if not _HAS_SMOTE:
         return X_train_scaled, y_train
 
@@ -480,13 +275,13 @@ def main():
 
     df = pd.read_csv(TRAIN_CSV)
 
-    # Build X/y for the *same* schema your model.py uses
+    
     X_raw, y, feature_cols, df_feat = preprocess(df)
 
-    # Train/test split (robust for small CSVs)
+    # Train/test split 
     X_train_raw, X_test_raw, y_train, y_test = _safe_train_test_split(X_raw, y, test_size=0.2, random_state=42)
 
-    # Scale using ONLY train data (recommended); then transform test
+    # Scale using ONLY train data 
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train_raw)
     X_test_scaled = scaler.transform(X_test_raw) if X_test_raw is not None else None
@@ -494,13 +289,13 @@ def main():
     # Optional SMOTE
     X_train_final, y_train_final = maybe_apply_smote(X_train_scaled, y_train)
 
-    # Fit KNN classifier (saved to satisfy load_model(); recommend() doesn't use it directly)
+    # Fit KNN classifier 
     n_neighbors = min(10, len(X_train_final))
     n_neighbors = max(1, int(n_neighbors))
     knn = KNeighborsClassifier(n_neighbors=n_neighbors, metric="euclidean")
     knn.fit(X_train_final, y_train_final)
 
-    # Evaluate (if we have a test set)
+    # Evaluate 
     if X_test_scaled is not None and y_test is not None and len(y_test) > 0:
         y_pred = knn.predict(X_test_scaled)
 
@@ -521,15 +316,15 @@ def main():
     else:
         print("Training finished (no held-out test set; dataset is small).")
 
-    # Optional metadata maps (only for pet_index enrichment)
+    
     breed_map, color_map, state_map = load_label_maps()
 
-    # Pet metadata index (OPTIONAL, but handy for testing recommend() quickly)
+    # Pet metadata index 
     pet_index = build_pet_index(df_feat, breed_map, color_map, state_map)
 
     features = {
-        "columns": feature_cols,   # <-- model.py expects this
-        "pet_index": pet_index,    # optional extra
+        "columns": feature_cols,  
+        "pet_index": pet_index,    
     }
 
     joblib.dump(knn, MODEL_OUT)

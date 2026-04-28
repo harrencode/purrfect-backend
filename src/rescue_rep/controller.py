@@ -86,7 +86,7 @@ async def upload_rescue_image(
     #Expects multipart/form-data with a 'file' field.
     
     try:
-        # Store rescue photos under 'rescues/' folder in your bucket
+        # Store rescue photos under 'rescues/' folder 
         url = upload_image_to_s3(file, folder="rescues")
         return {"url": url}
     except Exception as e:

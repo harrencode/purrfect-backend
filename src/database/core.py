@@ -15,8 +15,16 @@ def _build_database_url() -> str:
     if database_url:
         return database_url
 
-    # Local Docker Compose default
-    return "postgresql://postgres:postgres@db:5432/cleanfastapi"
+    user = os.getenv("POSTGRES_USER")
+    password = os.getenv("POSTGRES_PASSWORD")
+    db_name = os.getenv("POSTGRES_DB")
+    host = os.getenv("POSTGRES_HOST", "db")
+    port = os.getenv("POSTGRES_PORT", "5432")
+
+    if user and password and db_name:
+        return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
+
+    raise ValueError("DATABASE_URL or POSTGRES_* environment variables must be set")
 
 
 DATABASE_URL = _build_database_url()

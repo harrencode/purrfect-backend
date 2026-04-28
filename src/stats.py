@@ -1,4 +1,4 @@
-# FastAPI route to compute the three numbers using your SQLAlchemy models.
+# FastAPI route to compute the three numbers using SQLAlchemy models.
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel

@@ -1,7 +1,7 @@
 
 import uuid
 import enum
-from sqlalchemy import Column, String, Integer, Enum, Boolean
+from sqlalchemy import Column, String, Integer, Enum, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from ..database.core import Base
 
@@ -53,6 +53,12 @@ class User(Base):
     is_admin = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     # fcm_token = Column(String, nullable=True)
+
+
+    is_email_verified = Column(Boolean, default=False, nullable=False)
+    email_verification_token = Column(String, nullable=True, unique=True)
+    email_verification_expires_at = Column(DateTime(timezone=True), nullable=True)
+    email_verification_attempts = Column(Integer, default=0, nullable=False)
 
     def __repr__(self):
         return f"<User(email='{self.email}', first_name='{self.first_name}', last_name='{self.last_name}')>"
