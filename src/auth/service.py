@@ -112,7 +112,7 @@ def register_user(
             profile_photo_url=photo_url,
 
             # verification state
-            is_active=True,
+            is_active=False,
             is_email_verified=False,
             email_verification_token=code_hash,
             email_verification_expires_at=expires_at,
