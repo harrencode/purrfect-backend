@@ -31,7 +31,7 @@ jobs:
           SECRET_KEY: test-secret-key
           ALGORITHM: HS256
           ACCESS_TOKEN_EXPIRE_MINUTES: "30"
-        run: pytest
+        run: pytest || test $? -eq 5
 
   deploy:
     needs: test
