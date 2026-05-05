@@ -19,6 +19,16 @@ services:
         value: "HS256"
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "30"
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_FIRST_NAME
+        value: "Admin"
+      - key: ADMIN_LAST_NAME
+        value: "User"
+      - key: ADMIN_RESET_PASSWORD
+        value: "false"
       - key: DB_SSLMODE
         sync: false
       - key: DB_POOL_RECYCLE

@@ -16,6 +16,6 @@ COPY alembic/ alembic/
 # Expose the port FastAPI runs on
 EXPOSE 8000
 
-# Run the FastAPI application (production)
-# Uses PORT if provided (ECS/ALB commonly forwards to container port 8000).
-CMD ["sh", "-c", "gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000} src.main:app"]
+# Run migrations, optionally seed an admin user, then start the API.
+# Uses PORT if provided by the hosting platform.
+CMD ["sh", "-c", "alembic upgrade head && python -m src.scripts.create_admin && gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000} src.main:app"]
