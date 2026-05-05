@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: purrfect-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: purrfect-postgres
+          property: connectionString
+      - key: AUTO_CREATE_TABLES
+        value: "false"
+      - key: SECRET_KEY
+        sync: false
+      - key: ALGORITHM
+        value: "HS256"
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      - key: DB_SSLMODE
+        sync: false
+      - key: DB_POOL_RECYCLE
+        value: "300"
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_S3_BUCKET_NAME
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: SES_FROM_EMAIL
+        sync: false
+      - key: WHATSAPP_NUMBER
+        sync: false
+
+databases:
+  - name: purrfect-postgres
+    plan: free
+    databaseName: purrfectdb
+    user: purrfect

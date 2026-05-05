@@ -16,7 +16,12 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://192.168.1.100:3000", "http://localhost:8081"],  # front end origins
+    allow_origins=[
+        "http://localhost:3000",
+        "http://192.168.1.100:3000",
+        "http://localhost:8081",
+        "https://purrfect-frontend-web.vercel.app",
+    ],  # front end origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
