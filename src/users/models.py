@@ -44,6 +44,18 @@ class UserResponse(UserBase):
     id: UUID
 
 
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    profile_photo_url: Optional[str] = None
+    preferred_species: Optional[PreferredSpeciesEnum] = None
+    preferred_size: Optional[PreferredSizeEnum] = None
+    temperament: Optional[TemperamentEnum] = None
+    activity_level: Optional[ActivityLevelEnum] = None
+    min_age: Optional[int] = None
+    max_age: Optional[int] = None
+
+
 class UserPreferenceUpdate(BaseModel):
     preferred_species: Optional[PreferredSpeciesEnum] = None
     preferred_size: Optional[PreferredSizeEnum] = None

@@ -43,6 +43,20 @@ def update_preferences(db: Session, user_id: UUID, preferences: models.UserPrefe
     logging.info(f"Updated preferences for user {user_id}")
     return user
 
+
+def update_user(db: Session, user_id: UUID, payload: models.UserUpdate) -> User:
+    user = get_user_by_id(db, user_id)
+    updates = payload.model_dump(exclude_unset=True)
+
+    for key, value in updates.items():
+        setattr(user, key, value)
+
+    db.commit()
+    db.refresh(user)
+    logging.info(f"Updated user profile for user {user_id}")
+    return user
+
+
 def get_all_users(db: Session) -> list[User]:
     users = db.query(User).filter(User.is_active == True).all()
     logging.info(f"Retrieved active users, count: {len(users)}")

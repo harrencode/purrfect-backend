@@ -2,14 +2,10 @@ from .service import create_notification_if_not_exists
 from src.entities.lost_found import LostFoundReport
 from src.entities.rescue_rep import RescueReport
 from geopy.distance import geodesic
+from uuid import UUID
 
 
-def generate_nearby_notifications(db, current_user, lat: float, lon: float):
-    
-    user_id = getattr(current_user, "id", None) or getattr(current_user, "user_id", None)
-    if callable(user_id):
-        user_id = user_id()
-
+def generate_nearby_notifications(db, user_id: UUID, lat: float, lon: float):
     if not user_id:
         print("[Notifications] Could not determine user_id")
         return
