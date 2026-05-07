@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, Form
 from typing import List
 from uuid import UUID
-from ..database.core import DbSession
+from ..database.core import DbSession, SessionLocal
 from ..auth.service import CurrentUser
 from . import models, service
 from .nearby_notifs import generate_nearby_notifications
@@ -45,13 +45,16 @@ def trigger_nearby_notifications(
     #based on their latitude/longitude. Runs in a background thread.
     
 
+    user_id = current_user.get_uuid()
+
     def _run():
+        thread_db = SessionLocal()
         try:
-            
-            # generate_nearby_notifications is already written to handle that
-            generate_nearby_notifications(db, current_user, latitude, longitude)
+            generate_nearby_notifications(thread_db, user_id, latitude, longitude)
         except Exception as e:
             logging.error(f"[Nearby] Failed to generate nearby notifications: {e}")
+        finally:
+            thread_db.close()
 
     threading.Thread(target=_run, daemon=True).start()
 

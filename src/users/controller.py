@@ -1,10 +1,11 @@
 
-from fastapi import APIRouter, status, HTTPException
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from uuid import UUID
 from ..database.core import DbSession
 from . import models
 from . import service
 from ..auth.service import CurrentUser
+from ..utils.s3_service import upload_image_to_s3
 
 router = APIRouter(
     prefix="/users",
@@ -22,6 +23,45 @@ def get_current_user(current_user: CurrentUser, db: DbSession):
         )
 
     return service.get_user_by_id(db, user_uuid)
+
+
+@router.put("/me", response_model=models.UserResponse)
+def update_current_user(
+    payload: models.UserUpdate,
+    current_user: CurrentUser,
+    db: DbSession,
+):
+    user_uuid = current_user.get_uuid()
+    if user_uuid is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing user in token",
+        )
+
+    return service.update_user(db, user_uuid, payload)
+
+
+@router.post("/upload-s3")
+def upload_user_image(
+    current_user: CurrentUser,
+    file: UploadFile = File(...),
+    folder: str = Query("profiles"),
+):
+    if current_user.get_uuid() is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing user in token",
+        )
+
+    try:
+        url = upload_image_to_s3(file, folder=folder)
+        return {"url": url}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload image: {e}",
+        )
+
 
 @router.put("/change-password", status_code=status.HTTP_200_OK)
 def change_password(
