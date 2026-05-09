@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from ..database.core import DbSession
 from ..rate_limiter import limiter
 from . import models, service
-from .service import SECRET_KEY, ALGORITHM, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from .service import SECRET_KEY, ALGORITHM, create_token_pair
 from src.entities.user import User
 from src.auth.verification import hash_code, generate_code
 
@@ -126,8 +126,7 @@ def verify_code_and_login(body: models.VerifyCodeRequest, db: DbSession):
         raise HTTPException(status_code=400, detail="Invalid email or code")
 
     if user.is_email_verified and user.is_active:
-        token = create_access_token(user, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-        return models.Token(access_token=token, token_type="bearer")
+        return create_token_pair(user)
 
     if not user.email_verification_expires_at or user.email_verification_expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Code expired. Please request a new code.")
@@ -152,8 +151,12 @@ def verify_code_and_login(body: models.VerifyCodeRequest, db: DbSession):
     user.email_verification_attempts = 0
     db.commit()
 
-    token = create_access_token(user, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    return models.Token(access_token=token, token_type="bearer")
+    return create_token_pair(user)
+
+
+@router.post("/refresh", response_model=models.Token)
+def refresh_token(body: models.RefreshTokenRequest, db: DbSession):
+    return service.refresh_access_token(body.refresh_token, db)
 
 @router.post("/resend-code")
 @limiter.limit("5/hour")

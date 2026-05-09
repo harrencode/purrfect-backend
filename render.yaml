@@ -18,7 +18,9 @@ services:
       - key: ALGORITHM
         value: "HS256"
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
-        value: "30"
+        value: "15"
+      - key: REFRESH_TOKEN_EXPIRE_MINUTES
+        value: "10080"
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD
