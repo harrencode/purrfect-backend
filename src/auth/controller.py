@@ -177,6 +177,19 @@ def resend_code(request: Request, body: models.ResendCodeRequest, db: DbSession)
     user.is_active = False
     db.commit()
 
-    send_verification_code(user.email, code)
+    delivery = send_verification_code(user.email, code)
 
-    return {"message": "A new verification code has been sent."}
+    if delivery.get("requires_admin_code"):
+        return {
+            "message": (
+                "Your email address is not verified in SES, so the verification code "
+                f"was sent to the system admin at {delivery['admin_email']}."
+            ),
+            "requires_admin_code": True,
+            "admin_email": delivery["admin_email"],
+        }
+
+    return {
+        "message": "A new verification code has been sent.",
+        "requires_admin_code": False,
+    }

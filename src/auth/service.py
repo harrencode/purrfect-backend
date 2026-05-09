@@ -147,10 +147,22 @@ def register_user(
         db.add(user)
         db.commit()
 
-        # Send code by email
-        send_verification_code(email, code)
+        delivery = send_verification_code(email, code)
 
-        return {"message": "Account created. Verification code sent to email."}
+        if delivery.get("requires_admin_code"):
+            return {
+                "message": (
+                    "Account created. Your email address is not verified in SES, "
+                    f"so the verification code was sent to the system admin at {delivery['admin_email']}."
+                ),
+                "requires_admin_code": True,
+                "admin_email": delivery["admin_email"],
+            }
+
+        return {
+            "message": "Account created. Verification code sent to email.",
+            "requires_admin_code": False,
+        }
 
     except Exception as e:
         logging.error(f"Failed to register user {email}: {str(e)}")
