@@ -22,6 +22,25 @@ from math import radians, sin, cos, sqrt, atan2
 import logging
 
 
+def _rescue_report_response(report: RescueReport) -> models.RescueReportResponse:
+    user = report.user
+    return models.RescueReportResponse(
+        reportId=report.report_id,
+        userId=report.user_id,
+        userFirstName=user.first_name if user else None,
+        userLastName=user.last_name if user else None,
+        userFullName=f"{user.first_name} {user.last_name}" if user else None,
+        location=report.location,
+        latitude=report.latitude,
+        longitude=report.longitude,
+        photo=report.photo,
+        status=report.status.value if hasattr(report.status, "value") else report.status,
+        alert_type=report.alert_type.value if hasattr(report.alert_type, "value") else report.alert_type,
+        description=report.description,
+        chatId=report.chat_id,
+    )
+
+
 
 def create_rescue_report(
     current_user: TokenData,
@@ -70,16 +89,7 @@ def create_rescue_report(
         db.commit()
 
         logging.info(f"Created rescue report {new_report.report_id} by user {user_id}")
-        return models.RescueReportResponse(
-            reportId=new_report.report_id,
-            userId=new_report.user_id,
-            location=new_report.location,
-            photo=new_report.photo,
-            status=new_report.status.value if hasattr(new_report.status, 'value') else new_report.status,
-            alert_type=new_report.alert_type.value if hasattr(new_report.alert_type, 'value') else new_report.alert_type,
-            description=new_report.description,
-            chat_id=new_report.chat_id
-        )
+        return _rescue_report_response(new_report)
     except Exception as e:
         db.rollback()
         logging.error(f"Failed to create rescue report for user {current_user.get_uuid()}. Error: {str(e)}")
@@ -103,16 +113,7 @@ def get_rescue_report_by_id(
 
     logging.info(f"Retrieved rescue report {report_id} for user {current_user.get_uuid()}")
 
-    return models.RescueReportResponse(
-        reportId=report.report_id,
-        # petId=report.pet_id,
-        userId=report.user_id,
-        location=report.location,
-        photo=report.photo,
-        status=report.status,
-        alert_type=report.alert_type,
-        description=report.description
-    )
+    return _rescue_report_response(report)
 
 
 
@@ -167,11 +168,9 @@ def update_rescue_report(
             raise AuthorizationError("Only the creator can mark the rescue as complete")
 
     update_data = rescue_report_update.model_dump(exclude_unset=True)
-    db.query(RescueReport).filter(
-        RescueReport.report_id == report_id,
-        RescueReport.user_id == report.user_id
-    ).update(update_data)
+    db.query(RescueReport).filter(RescueReport.report_id == report_id).update(update_data)
     db.commit()
+    db.refresh(report)
 
     # Reward participants when marked as resolved
     if "status" in update_data and update_data["status"] == RescueStatusEnum.Resolved.value:
@@ -203,7 +202,7 @@ def update_rescue_report(
             db.commit()
 
     logging.info(f"Updated rescue report {report_id} by user {current_user.get_uuid()}")
-    return get_rescue_report_by_id(current_user, db, report_id)
+    return _rescue_report_response(report)
 
 
 
@@ -215,19 +214,7 @@ def get_rescue_report_by_chat(current_user, db: Session, chat_id: UUID) -> model
     
     
 
-    return models.RescueReportResponse(
-        reportId=report.report_id,
-        userId=report.user_id,
-        userFirstName=report.user.first_name if report.user else "Unknown",
-        userLastName=report.user.last_name if report.user else "Unknown",
-        userFullName=f"{report.user.first_name} {report.user.last_name}" if report.user else "Unknown",
-        location=report.location,
-        photo=report.photo,
-        status=report.status.value if hasattr(report.status, "value") else report.status,
-        alert_type=report.alert_type.value if hasattr(report.alert_type, "value") else report.alert_type,
-        description=report.description,
-        chatId=report.chat_id
-    )
+    return _rescue_report_response(report)
 
 
 
@@ -250,17 +237,6 @@ def get_nearby_rescue_reports(current_user, db: Session, lat: float, lon: float,
     ]
 
     return [
-        models.RescueReportResponse(
-            reportId=r.report_id,
-            userId=r.user_id,
-            location=r.location,
-            latitude=r.latitude,
-            longitude=r.longitude,
-            photo=r.photo,
-            status=r.status.value if hasattr(r.status, "value") else r.status,
-            alert_type=r.alert_type.value if hasattr(r.alert_type, "value") else r.alert_type,
-            description=r.description,
-            chatId=r.chat_id
-        )
+        _rescue_report_response(r)
         for r in nearby
     ]

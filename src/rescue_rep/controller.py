@@ -44,6 +44,14 @@ def get_rescue_reports(db: DbSession, current_user: CurrentUser):
     return service.get_rescue_reports(current_user, db)
 
 
+@router.get("/by-chat/{chat_id}", response_model=models.RescueReportResponse)
+def get_rescue_report_by_chat(chat_id: UUID, db: DbSession, current_user: CurrentUser):
+    
+    #Get a rescue report linked to a chat.
+    
+    return service.get_rescue_report_by_chat(current_user, db, chat_id)
+
+
 @router.get("/{report_id}", response_model=models.RescueReportResponse)
 def get_rescue_report(db: DbSession, report_id: UUID, current_user: CurrentUser):
     
@@ -68,13 +76,6 @@ def delete_rescue_report(db: DbSession, report_id: UUID, current_user: CurrentUs
     service.delete_rescue_report(current_user, db, report_id)
 
 
-
-@router.get("/by-chat/{chat_id}", response_model=models.RescueReportResponse)
-def get_rescue_report_by_chat(chat_id: UUID, db: DbSession, current_user: CurrentUser):
-    
-    #Get a rescue report linked to a chat.
-    
-    return service.get_rescue_report_by_chat(current_user, db, chat_id)
 
 @router.post("/upload-s3")
 async def upload_rescue_image(
