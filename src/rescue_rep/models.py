@@ -21,6 +21,7 @@ class RescueReportUpdate(BaseModel):
     status: Optional[str] = None
     description: Optional[str] = None
     alert_type: Optional[str] = None
+    chat_id: Optional[UUID] = None
 
 class RescueReportResponse(RescueReportBase):
     reportId: UUID
