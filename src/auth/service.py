@@ -20,7 +20,10 @@ from src.utils.s3_service import upload_image_to_s3
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+ACCESS_TOKEN_EXPIRE_SECONDS = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+REFRESH_TOKEN_EXPIRE_MINUTES = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", str(7 * 24 * 60)))
+REFRESH_TOKEN_EXPIRE_SECONDS = REFRESH_TOKEN_EXPIRE_MINUTES * 60
 
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl='auth/token')
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
@@ -44,17 +47,39 @@ def authenticate_user(email: str, password: str, db: Session) -> User | bool:
 def create_access_token(user: User, expires_delta: timedelta) -> str:
     to_encode = {
         "sub": str(user.id),                    
-        "email": user.email,                    
+        "email": user.email,
+        "type": "access",
         "exp": datetime.now(timezone.utc) + expires_delta,
     }
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+def create_refresh_token(user: User, expires_delta: timedelta) -> str:
+    to_encode = {
+        "sub": str(user.id),
+        "type": "refresh",
+        "exp": datetime.now(timezone.utc) + expires_delta,
+    }
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_token_pair(user: User) -> models.Token:
+    access_token = create_access_token(user, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    refresh_token = create_refresh_token(user, timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES))
+    return models.Token(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_SECONDS,
+        refresh_token=refresh_token,
+        refresh_expires_in=REFRESH_TOKEN_EXPIRE_SECONDS,
+    )
 
 
 
 def verify_token(token: str) -> models.TokenData:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") not in {None, "access"}:
+            raise AuthenticationError()
         user_id: str | None = payload.get("sub")
         logging.info(f"Decoded JWT payload: {payload}")
         return models.TokenData(user_id=user_id)
@@ -160,5 +185,23 @@ def login_for_access_token(
             detail={"code": "ACCOUNT_INACTIVE"}
         )
 
-    token = create_access_token(user, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    return models.Token(access_token=token, token_type="bearer")
+    return create_token_pair(user)
+
+
+def refresh_access_token(refresh_token: str, db: Session) -> models.Token:
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise AuthenticationError()
+
+        user_id = payload.get("sub")
+        if not user_id:
+            raise AuthenticationError()
+
+        user = db.query(User).filter(User.id == UUID(user_id)).first()
+        if not user or not user.is_active:
+            raise AuthenticationError()
+
+        return create_token_pair(user)
+    except (JWTError, ValueError):
+        raise AuthenticationError()
