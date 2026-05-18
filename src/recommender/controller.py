@@ -9,6 +9,7 @@ from ..auth.service import CurrentUser
 from ..entities.user import User
 from .service import get_recommended_pets
 from ..recommender.models import PetResponse
+from .scripts.train_from_db_if_needed import retrain_from_db_if_needed
 
 router = APIRouter(prefix="/recommend", tags=["Recommendation"])
 
@@ -46,5 +47,37 @@ def recommend_pets_for_user(
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/retrain", response_model=Dict[str, Any])
+def retrain_recommender(
+    current_user: CurrentUser,
+    force: bool = False,
+    db: Session = Depends(get_db),
+):
+    user_uuid = current_user.get_uuid()
+    if user_uuid is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing user in token",
+        )
+
+    user = db.query(User).filter(User.id == user_uuid).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User not found with ID: {user_uuid}",
+        )
+
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can retrain the recommender",
+        )
+
+    try:
+        return retrain_from_db_if_needed(force=force)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Recommender retrain failed: {e}")
 
 

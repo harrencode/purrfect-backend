@@ -56,16 +56,32 @@ def encode_preference(preference: Dict[str, Any], features_columns: List[str]) -
     temperament = _get(preference, "temperament", "Temperament")
     if isinstance(temperament, str):
         t = temperament.strip().lower()
-        if t in ("calm", "friendly", "playful"):
-            desc_col = f"desc_{t}"
-            if desc_col in vec.index:
-                vec[desc_col] = 1
+        col = f"temperament_{t}"
+        if col in vec.index:
+            vec[col] = 1
 
-    # numeric preferences 
-    for num_feat in ["Age", "Fee", "Quantity", "PhotoAmt", "VideoAmt"]:
+    activity_level = _get(preference, "activity_level", "ActivityLevel")
+    if isinstance(activity_level, str):
+        level = activity_level.strip().lower()
+        col = f"activity_{level}"
+        if col in vec.index:
+            vec[col] = 1
+
+    min_age = _get(preference, "min_age", "MinAge")
+    max_age = _get(preference, "max_age", "MaxAge")
+    if min_age is not None and max_age is not None and "age_months" in vec.index:
+        vec["age_months"] = (float(min_age) + float(max_age)) / 2.0
+    elif min_age is not None and "age_months" in vec.index:
+        vec["age_months"] = float(min_age)
+    elif max_age is not None and "age_months" in vec.index:
+        vec["age_months"] = float(max_age)
+
+    # Backwards compatible numeric aliases.
+    for num_feat in ["age_months", "Age"]:
         val = _get(preference, num_feat, num_feat.lower())
-        if val is not None and num_feat in vec.index:
-            vec[num_feat] = float(val)
+        target = "age_months" if num_feat == "Age" else num_feat
+        if val is not None and target in vec.index:
+            vec[target] = float(val)
 
     return vec.values.reshape(1, -1)
 
@@ -92,16 +108,23 @@ def encode_pet_for_model(pet: Dict[str, Any], features_columns: List[str]) -> np
     temperament = _get(pet, "Temperament", "temperament")
     if isinstance(temperament, str):
         t = temperament.strip().lower()
-        if t in ("calm", "friendly", "playful"):
-            desc_col = f"desc_{t}"
-            if desc_col in vec.index:
-                vec[desc_col] = 1
+        col = f"temperament_{t}"
+        if col in vec.index:
+            vec[col] = 1
 
-    # numeric features 
-    for num_feat in ["Age", "Fee", "Quantity", "PhotoAmt", "VideoAmt"]:
+    activity_level = _get(pet, "ActivityLevel", "activity_level")
+    if isinstance(activity_level, str):
+        level = activity_level.strip().lower()
+        col = f"activity_{level}"
+        if col in vec.index:
+            vec[col] = 1
+
+    # Backwards compatible numeric aliases.
+    for num_feat in ["age_months", "Age"]:
         val = _get(pet, num_feat, num_feat.lower())
-        if val is not None and num_feat in vec.index:
-            vec[num_feat] = float(val)
+        target = "age_months" if num_feat == "Age" else num_feat
+        if val is not None and target in vec.index:
+            vec[target] = float(val)
 
     return vec.values  
 
@@ -116,8 +139,12 @@ def recommend(preference: Dict[str, Any], pets_in_db: List[Dict[str, Any]], top_
     # Encode pets
     X_candidates = np.vstack([encode_pet_for_model(p, feature_cols) for p in pets_in_db])  
 
-    # Encode preference
-    pref_vec = encode_preference(preference, feature_cols)  
+    pref_vec = encode_preference(preference, feature_cols).copy()
+    if "age_months" in feature_cols and not any(
+        preference.get(key) is not None for key in ("age_months", "Age", "min_age", "max_age", "MinAge", "MaxAge")
+    ):
+        age_idx = feature_cols.index("age_months")
+        pref_vec[0, age_idx] = scaler.mean_[age_idx]
 
     
     X_candidates_scaled = scaler.transform(X_candidates)
@@ -134,3 +161,6 @@ def recommend(preference: Dict[str, Any], pets_in_db: List[Dict[str, Any]], top_
         results.append(pet)
 
     return results
+
+
+#python -m src.recommender.scripts.train
