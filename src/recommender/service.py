@@ -15,7 +15,9 @@ def get_recommended_pets(db: Session, user_id: str, top_k: int = 5):
         "preferred_species": user.preferred_species.value if user.preferred_species else None,
         "preferred_size": user.preferred_size.value if user.preferred_size else None,
         "temperament": user.temperament.value if user.temperament else None,
-        "activity_level": user.activity_level.value if user.activity_level else None
+        "activity_level": user.activity_level.value if user.activity_level else None,
+        "min_age": user.min_age,
+        "max_age": user.max_age,
     }
 
     # Fetch available pets
@@ -37,7 +39,7 @@ def get_recommended_pets(db: Session, user_id: str, top_k: int = 5):
             "Size": p.size.value.lower() if p.size else None,
             "Temperament": p.temperament.value.lower() if p.temperament else None,
             "ActivityLevel": p.activity_level.value.lower() if p.activity_level else None,
-            "Age": p.age if p.age else 0
+            "age_months": p.age if p.age else 0,
         }
         pets_in_db.append(pet_data)
         pet_map[str(p.pet_id)] = p  #  Map pet_id to full DB object
